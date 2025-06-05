@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "name": "odd-genius-footy-stats",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_FOOTY_STATS_API_KEY": "@footy-stats-api-key",
+    "NEXT_PUBLIC_FOOTY_STATS_BASE_URL": "@footy-stats-base-url",
+    "NEXT_PUBLIC_APP_NAME": "@app-name",
+    "NEXT_PUBLIC_APP_DESCRIPTION": "@app-description"
+  },
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  }
+}
