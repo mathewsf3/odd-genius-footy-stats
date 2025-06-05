@@ -1,19 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MatchCard, MatchCardCompact } from "@/components/MatchCard";
-import { LiveMatchCard } from "@/components/LiveMatchCard";
-import { UpcomingMatchCard } from "@/components/UpcomingMatchCard";
-import { EnhancedMatchCard } from "@/components/EnhancedMatchCard";
-import { RealMatchCard } from "@/components/RealMatchCard";
 import { CleanMatchCard } from "@/components/CleanMatchCard";
 import { FootyStatsAPI, isMatchLive } from "@/lib/api";
 import { Match } from "@/types";
-import { Play, Clock, Trophy, TrendingUp, Users, Target, Loader2, Calendar, Eye, RefreshCw } from "lucide-react";
+import { Play, Clock, Target, Loader2, Calendar, Eye, RefreshCw } from "lucide-react";
 import Link from "next/link";
 
 export default function Home() {
@@ -236,7 +230,6 @@ export default function Home() {
                   key={match.id}
                   match={match}
                   variant="live"
-                  showPredictions={false}
                 />
               ))}
             </div>
@@ -296,7 +289,6 @@ export default function Home() {
                   key={match.id}
                   match={match}
                   variant="upcoming"
-                  showPredictions={true}
                 />
               ))}
             </div>

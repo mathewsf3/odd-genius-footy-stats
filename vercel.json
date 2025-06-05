@@ -18,6 +18,8 @@
     }
   ],
   "env": {
+    "FOOTYSTATS_API_KEY": "@footy-stats-api-key",
+    "FOOTYSTATS_BASE_URL": "@footy-stats-base-url",
     "NEXT_PUBLIC_FOOTY_STATS_API_KEY": "@footy-stats-api-key",
     "NEXT_PUBLIC_FOOTY_STATS_BASE_URL": "@footy-stats-base-url",
     "NEXT_PUBLIC_APP_NAME": "@app-name",

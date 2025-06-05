@@ -17,6 +17,11 @@ export interface Match {
   homeGoalCount: number;
   awayGoalCount: number;
   totalGoalCount: number;
+  // Additional fields for live matches and competition info
+  competition_name?: string;
+  league_name?: string;
+  country?: string;
+  minute?: number;
   team_a_corners: number;
   team_b_corners: number;
   totalCornerCount: number;

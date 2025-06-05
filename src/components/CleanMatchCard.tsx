@@ -3,30 +3,29 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Clock, 
-  Eye, 
-  Target, 
+import {
+  Clock,
+  Eye,
+  Target,
   Zap,
-  TrendingUp,
-  Users,
-  MapPin
+  TrendingUp
 } from "lucide-react";
 import { Match, Team } from "@/types";
 import { formatMatchTime, formatMatchDate, isMatchLive } from "@/lib/api";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useExpectedGoals } from "@/hooks/useTeamStats";
+import { useMultipleTeamInfo } from "@/hooks/useTeamInfo";
+import { useLiveMatch } from "@/hooks/useLiveMatch";
 
 interface CleanMatchCardProps {
   match: Match;
   variant?: 'live' | 'upcoming' | 'today';
-  showPredictions?: boolean;
 }
 
-export function CleanMatchCard({ 
-  match, 
-  variant = 'today',
-  showPredictions = true 
+export function CleanMatchCard({
+  match,
+  variant = 'today'
 }: CleanMatchCardProps) {
   const [currentTime, setCurrentTime] = useState(Date.now());
   const isLive = isMatchLive(match);
@@ -34,6 +33,43 @@ export function CleanMatchCard({
   const matchDate = formatMatchDate(match.date_unix);
   const isUpcoming = match.status === 'incomplete' && !isLive;
   const isCompleted = match.status === 'complete';
+
+  // Hook para buscar Expected Goals para partidas upcoming
+  // Prioriza IDs se disponíveis (MUITO MAIS EFICIENTE)
+  // Agora usa dados REAIS da FootyStats API quando matchId está disponível
+  const { totalGoals, homeGoals, awayGoals, confidence, loading } = useExpectedGoals(
+    match.home_name || '',
+    match.away_name || '',
+    match.homeID,
+    match.awayID,
+    match.id // Passa o matchId para usar dados reais da FootyStats
+  );
+
+  // Hook para buscar informações dos times incluindo LOGOS REAIS
+  const { teamsInfo, loading: teamsLoading } = useMultipleTeamInfo([
+    match.homeID,
+    match.awayID
+  ]);
+
+  const [homeTeamInfo, awayTeamInfo] = teamsInfo;
+
+  // Hook para dados ao vivo (score e posse de bola reais)
+  const live = variant === 'live' && isLive;
+  const {
+    scoreA,
+    scoreB,
+    possA,
+    possB,
+    status: liveStatus,
+    minute: liveMinute,
+    isLoading: liveLoading
+  } = useLiveMatch(match.id, live);
+
+
+
+
+
+
 
   // Auto-refresh for live matches
   useEffect(() => {
@@ -45,14 +81,25 @@ export function CleanMatchCard({
     }
   }, [variant, isLive]);
 
-  // Get live match time
+  // Get live match time from API or fallback to calculated time
   const getLiveMatchTime = () => {
     if (!isLive) return null;
+
+    // Use real minute from API if available
+    if (live && liveMinute && liveMinute > 0) {
+      if (liveMinute <= 45) return `${liveMinute}'`;
+      if (liveMinute === 46) return "HT";
+      if (liveMinute <= 90) return `${liveMinute}'`;
+      if (liveMinute <= 95) return `90+${liveMinute - 90}'`;
+      return "FT";
+    }
+
+    // Fallback to calculated time based on match seed
     const matchSeed = match.id ? parseInt(match.id.toString()) : 0;
     const baseTime = 15 + (matchSeed % 75);
     const timeVariation = Math.floor((currentTime / 60000) % 5);
     const currentMatchTime = Math.min(baseTime + timeVariation, 90);
-    
+
     if (currentMatchTime <= 45) return `${currentMatchTime}'`;
     if (currentMatchTime <= 47) return "HT";
     if (currentMatchTime <= 90) return `${currentMatchTime}'`;
@@ -62,6 +109,7 @@ export function CleanMatchCard({
 
   // Team Logo Component - Static and Stable (no flickering)
   const TeamLogo = ({ teamName, logoUrl, size = "md" }: { teamName: string; logoUrl?: string; size?: "sm" | "md" | "lg" }) => {
+
     const sizeClasses = {
       sm: "w-8 h-8 text-xs",
       md: "w-12 h-12 text-sm",
@@ -109,16 +157,14 @@ export function CleanMatchCard({
     );
   };
 
-  const homeTeam: Team = {
+  const homeTeam: Partial<Team> = {
     id: match.homeID,
-    name: match.home_name,
-    venue: match.stadium_name
+    name: match.home_name
   };
 
-  const awayTeam: Team = {
+  const awayTeam: Partial<Team> = {
     id: match.awayID,
-    name: match.away_name,
-    venue: match.stadium_name
+    name: match.away_name
   };
 
   // Status badge - White & Green Theme
@@ -126,7 +172,7 @@ export function CleanMatchCard({
     if (variant === 'live' && isLive) {
       const liveTime = getLiveMatchTime();
       return (
-        <Badge className="bg-green-500 hover:bg-green-600 text-white animate-pulse font-bold shadow-lg">
+        <Badge className="bg-red-500 hover:bg-red-600 text-white animate-pulse font-bold shadow-lg">
           <div className="w-2 h-2 bg-white rounded-full animate-ping mr-2"></div>
           {liveTime === "HT" ? "INTERVALO" : liveTime === "FT" ? "FINAL" : `${liveTime}`}
         </Badge>
@@ -142,23 +188,28 @@ export function CleanMatchCard({
   };
 
   return (
-    <Card className={`overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02] shadow-lg ${
-      variant === 'live' ? 'bg-gradient-to-br from-green-50 to-white border-2 border-green-200' :
-      variant === 'upcoming' ? 'bg-gradient-to-br from-blue-50 to-white border-2 border-blue-200' :
-      'bg-gradient-to-br from-gray-50 to-white border-2 border-gray-200'
-    }`}>
-      <CardContent className="p-5">
+    <Card className="overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02] shadow-lg bg-gradient-to-br from-white to-gray-50 border-2 border-green-300 hover:border-green-400 h-full flex flex-col">
+      <CardContent className="p-5 flex flex-col h-full">
         {/* Header with League and Status */}
-        <div className="flex items-center justify-between mb-4">
-          <div className={`text-xs font-semibold truncate px-3 py-1 rounded-full ${
-            variant === 'live' ? 'text-green-700 bg-green-100 border border-green-200' :
-            variant === 'upcoming' ? 'text-blue-700 bg-blue-100 border border-blue-200' :
-            'text-gray-700 bg-gray-100 border border-gray-200'
-          }`}>
-            {match.competition_name || 'Liga Desconhecida'}
+        {variant === 'upcoming' ? (
+          <div className="text-center mb-4 space-y-2">
+            <div className="text-xs font-semibold px-3 py-1 rounded-full text-green-700 bg-green-50 border border-green-200 inline-block">
+              {match.competition_name || match.league_name || match.country || `Temporada ${match.season}`}
+            </div>
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+              <span>{matchDate}</span>
+              <span>•</span>
+              <span className="font-semibold">{matchTime}</span>
+            </div>
           </div>
-          {getStatusBadge()}
-        </div>
+        ) : (
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-xs font-semibold truncate px-3 py-1 rounded-full text-green-700 bg-green-50 border border-green-200">
+              {match.competition_name || match.league_name || match.country || `Temporada ${match.season}`}
+            </div>
+            {getStatusBadge()}
+          </div>
+        )}
 
         {/* Teams and Score */}
         <div className="space-y-3">
@@ -166,10 +217,11 @@ export function CleanMatchCard({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <TeamLogo
-                teamName={homeTeam.name}
-                logoUrl={(match as any).homeTeam?.logo}
+                teamName={homeTeam.name || match.home_name}
+                logoUrl={homeTeamInfo?.image || homeTeamInfo?.logo}
                 size="sm"
               />
+
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-sm truncate">{homeTeam.name}</div>
                 <div className="text-xs text-muted-foreground">Casa</div>
@@ -178,48 +230,33 @@ export function CleanMatchCard({
             
             {variant === 'live' ? (
               <div className="text-2xl font-bold text-white bg-green-600 px-3 py-2 rounded-lg border-2 border-green-700 min-w-[50px] text-center shadow-lg">
-                {match.homeGoalCount >= 0 ? match.homeGoalCount : '0'}
+                {live ? scoreA : '0'}
               </div>
-            ) : variant === 'upcoming' ? (
-              <div className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200">
+            ) : variant === 'upcoming' ? null : (
+              <div className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded border border-gray-200">
                 {matchTime}
-              </div>
-            ) : (
-              <div className="text-xl font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded min-w-[40px] text-center border border-gray-300">
-                {match.homeGoalCount >= 0 ? match.homeGoalCount : '-'}
               </div>
             )}
           </div>
 
-          {/* VS Divider - Enhanced with Better Contrast */}
+          {/* VS Divider - Unified Design */}
           <div className="flex items-center justify-center">
-            <div className={`w-full border-t-2 border-dashed ${
-              variant === 'live' ? 'border-green-300' :
-              variant === 'upcoming' ? 'border-blue-300' :
-              'border-gray-300'
-            }`}></div>
-            <div className={`mx-3 px-3 py-2 rounded-full text-xs font-bold shadow-lg ${
-              variant === 'live' ? 'bg-gradient-to-r from-green-500 to-green-600 text-white' :
-              variant === 'upcoming' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' :
-              'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
-            }`}>
+            <div className="w-full border-t-2 border-dashed border-gray-300"></div>
+            <div className="mx-3 px-3 py-2 rounded-full text-xs font-bold shadow-lg bg-gradient-to-r from-green-500 to-green-600 text-white">
               VS
             </div>
-            <div className={`w-full border-t-2 border-dashed ${
-              variant === 'live' ? 'border-green-300' :
-              variant === 'upcoming' ? 'border-blue-300' :
-              'border-gray-300'
-            }`}></div>
+            <div className="w-full border-t-2 border-dashed border-gray-300"></div>
           </div>
 
           {/* Away Team */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <TeamLogo
-                teamName={awayTeam.name}
-                logoUrl={(match as any).awayTeam?.logo}
+                teamName={awayTeam.name || match.away_name}
+                logoUrl={awayTeamInfo?.image || awayTeamInfo?.logo}
                 size="sm"
               />
+
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-sm truncate">{awayTeam.name}</div>
                 <div className="text-xs text-muted-foreground">Visitante</div>
@@ -228,15 +265,11 @@ export function CleanMatchCard({
             
             {variant === 'live' ? (
               <div className="text-2xl font-bold text-white bg-green-600 px-3 py-2 rounded-lg border-2 border-green-700 min-w-[50px] text-center shadow-lg">
-                {match.awayGoalCount >= 0 ? match.awayGoalCount : '0'}
+                {live ? scoreB : '0'}
               </div>
-            ) : variant === 'upcoming' ? (
-              <div className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200">
+            ) : variant === 'upcoming' ? null : (
+              <div className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded border border-gray-200">
                 {matchDate}
-              </div>
-            ) : (
-              <div className="text-xl font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded min-w-[40px] text-center border border-gray-300">
-                {match.awayGoalCount >= 0 ? match.awayGoalCount : '-'}
               </div>
             )}
           </div>
@@ -244,56 +277,85 @@ export function CleanMatchCard({
 
 
 
-        {/* Predictions for Upcoming - Enhanced Design */}
-        {variant === 'upcoming' && showPredictions && (
-          <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t-2 border-blue-200">
-            <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg border-2 border-green-200 shadow-sm">
-              <div className="flex items-center gap-1 mb-2">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-                <span className="text-xs font-semibold text-green-700">+2.5 Gols</span>
+
+
+        {/* Match Stats Info - Different for Live vs Upcoming */}
+        {variant === 'live' || match.status === 'complete' ? (
+          <div className="flex items-center justify-between text-xs font-medium p-3 rounded-lg mt-4 border-2 text-gray-700 bg-gray-50 border-gray-200">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-blue-500" />
+              <span>Posse de Bola</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-blue-600 font-bold">
+                {live && possA !== null ? `${possA}%` : (liveLoading ? '...' : 'N/A')}
+              </span>
+              <span className="text-gray-400">vs</span>
+              <span className="text-green-600 font-bold">
+                {live && possB !== null ? `${possB}%` : (liveLoading ? '...' : 'N/A')}
+              </span>
+              {liveLoading && (
+                <div className="w-3 h-3 border border-gray-300 border-t-blue-600 rounded-full animate-spin ml-1"></div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2 mt-4">
+            {/* Expected Goals - Formato Compacto */}
+            <div className={`flex items-center justify-between text-xs font-medium p-3 rounded-lg border-2 text-gray-700 ${
+              totalGoals === 0
+                ? 'bg-red-50 border-red-200'
+                : 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <TrendingUp className={`h-4 w-4 ${totalGoals === 0 ? 'text-red-500' : 'text-purple-500'}`} />
+                <span>Gols Esperados</span>
+                {loading && <div className="w-3 h-3 border border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>}
               </div>
-              <div className="text-lg font-bold text-green-700">
-                {((match.o25_potential || 0) * 100).toFixed(0)}%
+              <div className="flex items-center gap-2">
+                {totalGoals === 0 ? (
+                  <span className="text-red-600 font-bold text-xs">SEM DADOS REAIS</span>
+                ) : (
+                  <>
+                    <span className="text-blue-600 font-bold">{homeGoals.toFixed(1)}</span>
+                    <span className="text-gray-400">vs</span>
+                    <span className="text-green-600 font-bold">{awayGoals.toFixed(1)}</span>
+                  </>
+                )}
               </div>
             </div>
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border-2 border-blue-200 shadow-sm">
-              <div className="flex items-center gap-1 mb-2">
-                <Users className="h-4 w-4 text-blue-600" />
-                <span className="text-xs font-semibold text-blue-700">Ambos Marcam</span>
+
+            {/* Total Expected Goals */}
+            {totalGoals > 0 && (
+              <div className="flex items-center justify-between text-xs font-medium p-2 rounded-lg bg-gray-50 border border-gray-200">
+                <div className="flex items-center gap-2">
+                  <Target className="h-3 w-3 text-gray-500" />
+                  <span className="text-gray-600">Total Esperado</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-700 font-bold">{totalGoals.toFixed(1)} gols</span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    confidence === 'Alta' ? 'bg-green-100 text-green-700' :
+                    confidence === 'Média' ? 'bg-yellow-100 text-yellow-700' :
+                    confidence === 'Sem Dados' ? 'bg-red-100 text-red-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {confidence}
+                  </span>
+                </div>
               </div>
-              <div className="text-lg font-bold text-blue-700">
-                {((match.btts_potential || 0) * 100).toFixed(0)}%
-              </div>
-            </div>
+            )}
           </div>
         )}
 
-        {/* Stadium Info - Enhanced */}
-        {match.stadium_name && (
-          <div className={`flex items-center gap-2 text-xs font-medium p-3 rounded-lg mt-4 border-2 ${
-            variant === 'live' ? 'text-green-700 bg-green-50 border-green-200' :
-            variant === 'upcoming' ? 'text-blue-700 bg-blue-50 border-blue-200' :
-            'text-gray-700 bg-gray-50 border-gray-200'
-          }`}>
-            <MapPin className="h-4 w-4" />
-            <span className="truncate">{match.stadium_name}</span>
-          </div>
-        )}
-
-        {/* Action Buttons - Unified Design */}
-        <div className="flex gap-3 mt-5">
-          <Button asChild size="sm" className="flex-1 bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 text-white shadow-lg font-semibold transition-all duration-200">
-            <Link href={`/match/${match.id}`} className="flex items-center gap-2">
+        {/* Action Button - Unified */}
+        <div className="mt-auto pt-4">
+          <Button asChild size="sm" className="w-full bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 text-white shadow-lg font-semibold transition-all duration-200">
+            <Link href={`/match/${match.id}`} className="flex items-center justify-center gap-2 w-full">
               <Target className="h-4 w-4" />
               <span className="text-sm">Analisar</span>
             </Link>
           </Button>
-          {variant === 'upcoming' && (
-            <Button size="sm" className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg font-semibold">
-              <Calendar className="h-4 w-4" />
-              <span className="text-sm">Dicas</span>
-            </Button>
-          )}
         </div>
 
 

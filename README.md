@@ -102,6 +102,11 @@ src/
    Update `.env.local` with your configuration:
 
    ```env
+   # Server-side variables (for API routes)
+   FOOTYSTATS_API_KEY=your_api_key_here
+   FOOTYSTATS_BASE_URL=https://api.football-data-api.com
+
+   # Client-side variables (for browser/frontend)
    NEXT_PUBLIC_FOOTY_STATS_API_KEY=your_api_key_here
    NEXT_PUBLIC_FOOTY_STATS_BASE_URL=https://api.football-data-api.com
    ```
@@ -174,7 +179,13 @@ src/
 The application uses the FootyStats API for soccer data. Configure your API key in the environment variables:
 
 ```env
+# Server-side variables (for API routes)
+FOOTYSTATS_API_KEY=your_api_key_here
+FOOTYSTATS_BASE_URL=https://api.football-data-api.com
+
+# Client-side variables (for browser/frontend)
 NEXT_PUBLIC_FOOTY_STATS_API_KEY=your_api_key_here
+NEXT_PUBLIC_FOOTY_STATS_BASE_URL=https://api.football-data-api.com
 ```
 
 ### Customization
