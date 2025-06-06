@@ -4,82 +4,67 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CleanMatchCard } from "@/components/CleanMatchCard";
-import { EnhancedLiveMatchCard } from "@/components/EnhancedLiveMatchCard";
-import { NewFootyStatsAPI } from "@/lib/newAPI";
+import { LiveMatches } from "@/components/LiveMatches";
+import { UpcomingMatches } from "@/components/UpcomingMatches";
 import { Match } from "@/types";
-import { Play, Clock, Target, Loader2, Calendar, Eye, RefreshCw } from "lucide-react";
+import { Play, Clock, Target, Loader2, Calendar, Eye, RefreshCw, Wifi } from "lucide-react";
 import Link from "next/link";
 
 export default function Home() {
-  const [liveMatches, setLiveMatches] = useState<Match[]>([]);
-  const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
-  const [todayMatches, setTodayMatches] = useState<Match[]>([]);
+  const [dashboardStats, setDashboardStats] = useState({
+    liveCount: 0,
+    todayCount: 0,
+    upcomingCount: 0,
+    systemStatus: 'online'
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  const fetchDashboardStats = async () => {
+    try {
+      setError(null);
+      
+      // Fetch dashboard statistics
+      const [liveResponse, upcomingResponse] = await Promise.all([
+        fetch('/api/matches/live'),
+        fetch('/api/matches/upcoming')
+      ]);
+
+      const [liveData, upcomingData] = await Promise.all([
+        liveResponse.json(),
+        upcomingResponse.json()
+      ]);
+
+      setDashboardStats({
+        liveCount: liveData.success ? liveData.count || 0 : 0,
+        todayCount: upcomingData.success ? upcomingData.todayMatches?.length || 0 : 0,
+        upcomingCount: upcomingData.success ? upcomingData.count || 0 : 0,
+        systemStatus: 'online'
+      });
+
+      setLastUpdate(new Date());
+      console.log('📊 Dashboard stats updated:', {
+        live: liveData.count,
+        today: upcomingData.todayMatches?.length,
+        upcoming: upcomingData.count
+      });
+
+    } catch (err) {
+      console.error('❌ Erro ao buscar estatísticas do dashboard:', err);
+      setError('Falha ao carregar estatísticas do dashboard');
+      setDashboardStats(prev => ({ ...prev, systemStatus: 'offline' }));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        console.log('🔄 Buscando dados REAIS da API FootyStats...');
-
-        // Buscar partidas ao vivo diretamente - DADOS REAIS
-        const live = await NewFootyStatsAPI.getLiveMatches();
-        console.log('🔴 Partidas ao vivo encontradas:', live?.length || 0, 'partidas');
-        if (live && live.length > 0) {
-          setLiveMatches(live.slice(0, 6));
-        }
-
-        // Buscar partidas de hoje - DADOS REAIS
-        const today = await NewFootyStatsAPI.getTodaysMatches();
-        console.log('📊 Partidas de hoje encontradas:', today?.length || 0, 'partidas');
-
-        if (today && today.length > 0) {
-          setTodayMatches(today);
-
-          // Para partidas futuras, usar as partidas de hoje que são futuras E NÃO estão ao vivo
-          const liveMatchIds = live.map((m: Match) => m.id);
-          const todayFuture = today.filter((match: Match) =>
-            match.status === 'incomplete' &&
-            match.date_unix * 1000 > Date.now() &&
-            !liveMatchIds.includes(match.id) // Excluir partidas que já estão na lista de ao vivo
-          );
-
-          // Se não há partidas futuras hoje, buscar próximas partidas
-          if (todayFuture.length === 0) {
-            console.log('⏰ Nenhuma partida futura hoje, buscando próximas partidas...');
-            const upcoming = await NewFootyStatsAPI.getUpcomingMatches(7);
-            if (upcoming && upcoming.length > 0) {
-              setUpcomingMatches(upcoming.slice(0, 6));
-              console.log('⏰ Próximas partidas encontradas:', upcoming.length, 'partidas');
-            }
-          } else {
-            setUpcomingMatches(todayFuture.slice(0, 6));
-            console.log('⏰ Partidas futuras de hoje (excluindo ao vivo):', todayFuture.length, 'partidas');
-          }
-        } else {
-          // Se não conseguir dados de hoje, buscar próximas partidas
-          const upcoming = await NewFootyStatsAPI.getUpcomingMatches(3);
-          console.log('⏰ Próximas partidas encontradas:', upcoming?.length || 0, 'partidas');
-
-          if (upcoming && upcoming.length > 0) {
-            setUpcomingMatches(upcoming.slice(0, 6));
-            setTodayMatches(upcoming.slice(0, 12)); // Usar algumas como "hoje"
-          }
-        }
-
-      } catch (err) {
-        console.error('❌ Erro ao buscar dados REAIS:', err);
-        setError('Falha ao carregar dados reais de partidas da API FootyStats. Verifique a conexão.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
+    fetchDashboardStats();
+    
+    // Update stats every 2 minutes
+    const interval = setInterval(fetchDashboardStats, 120000);
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
@@ -98,12 +83,13 @@ export default function Home() {
       <div className="flex items-center justify-center min-h-screen">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-destructive">Error</CardTitle>
+            <CardTitle className="text-destructive">Erro</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">{error}</p>
             <Button onClick={() => window.location.reload()}>
-              Try Again
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Tentar Novamente
             </Button>
           </CardContent>
         </Card>
@@ -113,34 +99,32 @@ export default function Home() {
 
   return (
     <div className="container mx-auto p-6 space-y-8">
-
-
       {/* Modern Stats Cards - White & Green Theme */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-0 bg-gradient-to-br from-white to-green-50 shadow-lg hover:shadow-xl transition-all duration-300">
+        <Card className="border-0 bg-gradient-to-br from-white to-red-50 shadow-lg hover:shadow-xl transition-all duration-300">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-600 mb-1">Ao Vivo</p>
-                <div className="text-3xl font-bold text-gray-900">{liveMatches.length}</div>
+                <p className="text-sm font-medium text-red-600 mb-1">Ao Vivo</p>
+                <div className="text-3xl font-bold text-gray-900">{dashboardStats.liveCount}</div>
                 <p className="text-xs text-gray-500 mt-1">Acontecendo agora</p>
               </div>
-              <div className="p-3 bg-green-500 rounded-full">
+              <div className="p-3 bg-red-500 rounded-full">
                 <Play className="h-6 w-6 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 bg-gradient-to-br from-white to-gray-50 shadow-lg hover:shadow-xl transition-all duration-300">
+        <Card className="border-0 bg-gradient-to-br from-white to-blue-50 shadow-lg hover:shadow-xl transition-all duration-300">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Hoje</p>
-                <div className="text-3xl font-bold text-gray-900">{todayMatches.length}</div>
+                <p className="text-sm font-medium text-blue-600 mb-1">Hoje</p>
+                <div className="text-3xl font-bold text-gray-900">{dashboardStats.todayCount}</div>
                 <p className="text-xs text-gray-500 mt-1">Programadas</p>
               </div>
-              <div className="p-3 bg-gray-500 rounded-full">
+              <div className="p-3 bg-blue-500 rounded-full">
                 <Clock className="h-6 w-6 text-white" />
               </div>
             </div>
@@ -152,7 +136,7 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-green-600 mb-1">Próximas</p>
-                <div className="text-3xl font-bold text-gray-900">{upcomingMatches.length}</div>
+                <div className="text-3xl font-bold text-gray-900">{dashboardStats.upcomingCount}</div>
                 <p className="text-xs text-gray-500 mt-1">Esta semana</p>
               </div>
               <div className="p-3 bg-green-600 rounded-full">
@@ -167,8 +151,10 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 mb-1">Status</p>
-                <div className="text-3xl font-bold text-green-600">●</div>
-                <p className="text-xs text-gray-500 mt-1">Online</p>
+                <div className={`text-3xl font-bold ${dashboardStats.systemStatus === 'online' ? 'text-green-600' : 'text-red-600'}`}>
+                  {dashboardStats.systemStatus === 'online' ? '●' : '●'}
+                </div>
+                <p className="text-xs text-gray-500 mt-1 capitalize">{dashboardStats.systemStatus}</p>
               </div>
               <div className="p-3 bg-gray-600 rounded-full">
                 <Target className="h-6 w-6 text-white" />
@@ -178,125 +164,84 @@ export default function Home() {
         </Card>
       </div>
 
+      {/* System Status */}
+      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
+        <div className="flex items-center gap-3">
+          <Wifi className="h-5 w-5 text-green-600" />
+          <div>
+            <p className="font-medium text-gray-900">Sistema Online</p>
+            <p className="text-sm text-gray-600">
+              Última atualização: {lastUpdate.toLocaleTimeString('pt-BR', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+              })}
+            </p>
+          </div>
+        </div>
+        <Button 
+          onClick={fetchDashboardStats} 
+          variant="outline" 
+          size="sm"
+          className="border-green-200 hover:bg-green-50 text-green-700"
+          disabled={loading}
+        >
+          {loading ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-2" />
+          )}
+          Atualizar
+        </Button>
+      </div>
 
       {/* Main Dashboard Content */}
       <div className="space-y-10">
-        {/* Live Matches Section - Modern White & Green */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-4 bg-green-500 rounded-xl shadow-lg">
-                  <Play className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Partidas ao Vivo</h2>
-                  <p className="text-sm text-gray-600">Acompanhe os jogos em tempo real</p>
-                </div>
-                {liveMatches.length > 0 && (
-                  <Badge className="bg-green-500 hover:bg-green-600 text-white animate-pulse ml-4">
-                    <div className="w-2 h-2 bg-white rounded-full animate-ping mr-2"></div>
-                    {liveMatches.length} AO VIVO
-                  </Badge>
-                )}
-              </div>
-              <Button asChild variant="outline" className="border-green-200 hover:bg-green-50 text-green-700">
-                <Link href="/live" className="flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  Ver Todas
-                </Link>
-              </Button>
-            </div>
-          </div>
+        {/* Live Matches Section */}
+        <LiveMatches 
+          maxMatches={6}
+          autoRefresh={true}
+          refreshInterval={30000} // 30 seconds
+        />
 
-          {liveMatches.length === 0 ? (
-            <Card className="border-gray-200 bg-gradient-to-br from-white to-gray-50 shadow-lg">
-              <CardContent className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="p-4 bg-gray-100 rounded-full w-fit mx-auto mb-4">
-                    <Clock className="h-12 w-12 text-gray-600" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Nenhuma Partida ao Vivo</h3>
-                  <p className="text-gray-600 mb-6 max-w-md">
-                    Não há partidas sendo jogadas no momento. Verifique as próximas partidas ou tente atualizar.
-                  </p>
-                  <Button onClick={() => window.location.reload()} variant="outline" className="border-green-300 hover:bg-green-50 text-green-700">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Atualizar Partidas ao Vivo
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {liveMatches.slice(0, 6).map((match) => (
-                <EnhancedLiveMatchCard
-                  key={match.id}
-                  match={match}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Upcoming Matches Section */}
+        <UpcomingMatches 
+          maxMatches={6}
+          showTodayOnly={true}
+          autoRefresh={true}
+          refreshInterval={60000} // 1 minute
+        />
+      </div>
 
-        {/* Upcoming Matches Section - Modern White & Green */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-4 bg-green-600 rounded-xl shadow-lg">
-                  <Calendar className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Próximas Partidas</h2>
-                  <p className="text-sm text-gray-600">Planeje suas apostas e previsões</p>
-                </div>
-                {upcomingMatches.length > 0 && (
-                  <Badge variant="outline" className="bg-green-50 border-green-200 text-green-700 ml-4">
-                    <Calendar className="w-3 h-3 mr-1" />
-                    {upcomingMatches.length} PRÓXIMAS
-                  </Badge>
-                )}
-              </div>
-              <Button asChild variant="outline" className="border-green-200 hover:bg-green-50 text-green-700">
-                <Link href="/upcoming" className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Ver Todas
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          {upcomingMatches.length === 0 ? (
-            <Card className="border-gray-200 bg-gradient-to-br from-white to-gray-50 shadow-lg">
-              <CardContent className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="p-4 bg-gray-100 rounded-full w-fit mx-auto mb-4">
-                    <Calendar className="h-12 w-12 text-gray-600" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Nenhuma Próxima Partida Encontrada</h3>
-                  <p className="text-gray-600 mb-6 max-w-md">
-                    Nenhuma próxima partida encontrada nos próximos 14 dias. Isso pode ser devido a limites da API ou jogos não programados.
-                  </p>
-                  <Button onClick={() => window.location.reload()} variant="outline" className="border-green-300 hover:bg-green-50 text-green-700">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Atualizar Próximas Partidas
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {upcomingMatches.slice(0, 6).map((match) => (
-                <CleanMatchCard
-                  key={match.id}
-                  match={match}
-                  variant="upcoming"
-                />
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Quick Actions */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Button asChild variant="outline" className="h-16 border-red-200 hover:bg-red-50 text-red-700">
+          <Link href="/live" className="flex flex-col items-center gap-2">
+            <Play className="h-5 w-5" />
+            <span className="text-sm font-medium">Ver Todas ao Vivo</span>
+          </Link>
+        </Button>
+        
+        <Button asChild variant="outline" className="h-16 border-green-200 hover:bg-green-50 text-green-700">
+          <Link href="/upcoming" className="flex flex-col items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            <span className="text-sm font-medium">Próximas Partidas</span>
+          </Link>
+        </Button>
+        
+        <Button asChild variant="outline" className="h-16 border-blue-200 hover:bg-blue-50 text-blue-700">
+          <Link href="/leagues" className="flex flex-col items-center gap-2">
+            <Target className="h-5 w-5" />
+            <span className="text-sm font-medium">Ligas</span>
+          </Link>
+        </Button>
+        
+        <Button asChild variant="outline" className="h-16 border-gray-200 hover:bg-gray-50 text-gray-700">
+          <Link href="/statistics" className="flex flex-col items-center gap-2">
+            <Eye className="h-5 w-5" />
+            <span className="text-sm font-medium">Estatísticas</span>
+          </Link>
+        </Button>
       </div>
     </div>
   );

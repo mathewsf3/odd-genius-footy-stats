@@ -98,18 +98,18 @@ export class NewFootyStatsAPI {
   }
 
   /**
-   * 🔴 Buscar partidas ao vivo - ENDPOINT DEDICADO
-   * Usa endpoint especializado com múltiplas estratégias
+   * 🔴 Buscar partidas ao vivo - ENDPOINT CORRIGIDO
+   * Usa novo endpoint com timezone e filtros corretos
    */
   static async getLiveMatches(date?: string): Promise<Match[]> {
     return await CacheUtils.withCache(
       'liveMatches',
       { date: date || 'today' },
       async () => {
-        console.log('🔴 BUSCANDO PARTIDAS AO VIVO - ENDPOINT DEDICADO...');
+        console.log('🔴 BUSCANDO PARTIDAS AO VIVO - ENDPOINT CORRIGIDO...');
 
-        // Usar dados do banco local para partidas ao vivo
-        const response = await fetch('/api/db/live-matches', {
+        // Usar novo endpoint corrigido
+        const response = await fetch('/api/matches/live', {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
         });
@@ -127,60 +127,53 @@ export class NewFootyStatsAPI {
         const liveMatches = data.data || [];
 
         console.log(`🔴 PARTIDAS AO VIVO ENCONTRADAS: ${liveMatches.length}`);
-        console.log(`📊 Fonte: ${data.source}, Estratégias: ${data.strategies_used?.join(', ')}`);
+        console.log(`📊 Fonte: ${data.source}`);
 
         return liveMatches;
-      }
+      },
+      30 // Cache por 30 segundos para dados ao vivo
     );
   }
 
   /**
-   * Buscar próximas partidas
+   * 📅 Buscar próximas partidas - ENDPOINT CORRIGIDO
+   * Usa novo endpoint com timezone e filtros corretos
    */
   static async getUpcomingMatches(days: number = 7): Promise<Match[]> {
-    try {
-      console.log(`🔍 Buscando próximas partidas para ${days} dias...`);
+    return await CacheUtils.withCache(
+      'upcomingMatches',
+      { days },
+      async () => {
+        console.log(`📅 BUSCANDO PRÓXIMAS PARTIDAS - ENDPOINT CORRIGIDO...`);
 
-      const matches: Match[] = [];
-      const today = new Date();
+        // Usar novo endpoint corrigido
+        const response = await fetch('/api/matches/upcoming', {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+        });
 
-      // Buscar partidas dos próximos dias
-      for (let i = 0; i <= days; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-
-        try {
-          const params = new URLSearchParams();
-          params.append('date', dateStr);
-          params.append('type', 'upcoming');
-
-          const response = await fetch(`/api/db/matches?${params}`, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.data) {
-              matches.push(...data.data);
-            }
-          }
-        } catch (dayError) {
-          console.warn(`❌ Erro para ${dateStr}:`, dayError);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-      }
 
-      console.log(`📅 Total de próximas partidas encontradas: ${matches.length}`);
-      return matches;
-      
-    } catch (error) {
-      console.error('❌ Erro ao buscar próximas partidas:', error);
-      return []; // Retorna array vazio em caso de erro
-    }
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to fetch upcoming matches');
+        }
+
+        const upcomingMatches = data.data || [];
+
+        console.log(`📅 PRÓXIMAS PARTIDAS ENCONTRADAS: ${upcomingMatches.length}`);
+        console.log(`📊 Fonte: ${data.source}`);
+
+        return upcomingMatches;
+      },
+      300 // Cache por 5 minutos para próximas partidas
+    );
   }
+
+
 
   /**
    * Buscar detalhes de um time
