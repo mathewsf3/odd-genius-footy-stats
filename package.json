@@ -17,7 +17,10 @@
     "agent:frontend": "cross-env AGENT_TYPE=frontend node scripts/agent-frontend.js",
     "agent:monitor": "node scripts/monitor-agents.js",
     "agent:clean": "rm -rf .agent-context",
-    "agent:status": "node -e \"const ThreadManager = require('./.agent-context/thread-manager'); const tm = new ThreadManager(); console.log(JSON.stringify(tm.getActiveThread(), null, 2));\""
+    "agent:status": "node -e \"const ThreadManager = require('./.agent-context/thread-manager'); const tm = new ThreadManager(); console.log(JSON.stringify(tm.getActiveThread(), null, 2));\"",
+    "collab:augment": "node scripts/start-augment-collaboration.js",
+    "collab:vscode": "node scripts/start-vscode-collaboration.js",
+    "collab:monitor": "npm run agent:monitor"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
