@@ -114,33 +114,44 @@ async function fetchFootyStats(endpoint: string, params: Record<string, any> = {
 export async function syncLeagues() {
   try {
     console.log('🔄 Sincronizando ligas...');
-    
-    const leagues: FootyStatsLeague[] = await fetchFootyStats('/league-list', {
+
+    const leagues = await fetchFootyStats('/league-list', {
       chosen_leagues_only: true
     });
 
     console.log(`📊 Encontradas ${leagues.length} ligas`);
 
+    let totalSeasons = 0;
+
     for (const league of leagues) {
-      await prisma.league.upsert({
-        where: { season_id: league.id },
-        update: {
-          league_name: league.name,
-          country: league.country,
-          is_current: league.current,
-          updated_at: new Date(),
-        },
-        create: {
-          season_id: league.id,
-          league_name: league.name,
-          country: league.country,
-          is_current: league.current,
-        },
-      });
+      // Cada liga tem múltiplas temporadas
+      if (league.season && Array.isArray(league.season)) {
+        for (const season of league.season) {
+          // Considerar apenas temporadas recentes (2020+)
+          if (season.year >= 2020) {
+            await prisma.league.upsert({
+              where: { season_id: season.id },
+              update: {
+                league_name: `${league.name} ${season.year}`,
+                country: league.country,
+                is_current: season.year >= 2024, // Temporadas 2024+ são consideradas atuais
+                updated_at: new Date(),
+              },
+              create: {
+                season_id: season.id,
+                league_name: `${league.name} ${season.year}`,
+                country: league.country,
+                is_current: season.year >= 2024,
+              },
+            });
+            totalSeasons++;
+          }
+        }
+      }
     }
 
-    console.log('✅ Ligas sincronizadas com sucesso');
-    return leagues.length;
+    console.log(`✅ ${totalSeasons} temporadas sincronizadas com sucesso`);
+    return totalSeasons;
   } catch (error) {
     console.error('❌ Erro ao sincronizar ligas:', error);
     throw error;

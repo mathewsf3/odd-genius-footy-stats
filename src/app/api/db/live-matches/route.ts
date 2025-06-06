@@ -67,8 +67,16 @@ export async function GET(request: NextRequest) {
       id: match.match_id,
       homeID: match.home_team_id,
       awayID: match.away_team_id,
-      homeName: match.home_team.name,
-      awayName: match.away_team.name,
+      // Campos que o frontend espera
+      home_name: match.home_team?.name || 'Time Casa',
+      away_name: match.away_team?.name || 'Time Visitante',
+      home_image: match.home_team?.logo_url || '',
+      away_image: match.away_team?.logo_url || '',
+      // Campos alternativos para compatibilidade
+      homeName: match.home_team?.name || 'Time Casa',
+      awayName: match.away_team?.name || 'Time Visitante',
+      homeLogo: match.home_team?.logo_url || '',
+      awayLogo: match.away_team?.logo_url || '',
       homeGoalCount: match.homeGoalCount,
       awayGoalCount: match.awayGoalCount,
       date_unix: match.date_unix,
@@ -98,14 +106,14 @@ export async function GET(request: NextRequest) {
       home_ppg: match.home_ppg,
       away_ppg: match.away_ppg,
       refereeID: match.refereeID,
+      // Campos de liga que o frontend espera
+      competition_name: match.league?.league_name || 'Liga Desconhecida',
+      country: match.league?.country || 'País Desconhecido',
       league: {
-        id: match.league.season_id,
-        name: match.league.league_name,
-        country: match.league.country,
+        id: match.league?.season_id,
+        name: match.league?.league_name,
+        country: match.league?.country,
       },
-      // Adicionar logos dos times (se disponível)
-      homeLogo: match.home_team.logo_url || '',
-      awayLogo: match.away_team.logo_url || '',
       // Adicionar informações de debug
       _debug: {
         hours_from_match: Math.round((Math.abs(match.date_unix * 1000 - now) / (1000 * 60 * 60)) * 10) / 10,

@@ -53,20 +53,21 @@ export function EnhancedLiveMatchCard({ match }: EnhancedLiveMatchCardProps) {
   };
 
   // Fallback para logos
-  const TeamLogo = ({ 
-    src, 
-    alt, 
-    onError 
-  }: { 
-    src: string | undefined; 
-    alt: string; 
+  const TeamLogo = ({
+    src,
+    alt,
+    onError
+  }: {
+    src: string | undefined;
+    alt: string | undefined;
     onError: () => void;
   }) => {
     if (!src) {
+      const initials = alt && alt.length > 0 ? alt.substring(0, 2).toUpperCase() : '??';
       return (
         <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
           <span className="text-gray-500 text-xs font-bold">
-            {alt.substring(0, 2).toUpperCase()}
+            {initials}
           </span>
         </div>
       );

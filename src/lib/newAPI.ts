@@ -5,10 +5,7 @@
  */
 
 import { Match, Team, League } from '@/types';
-
-// Cache simples para otimizar chamadas
-const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 30000; // 30 segundos
+import { cache, CacheUtils } from './cache';
 
 /**
  * 🔥 COMPLETE FootyStats API Client - DADOS REAIS
@@ -105,48 +102,36 @@ export class NewFootyStatsAPI {
    * Usa endpoint especializado com múltiplas estratégias
    */
   static async getLiveMatches(date?: string): Promise<Match[]> {
-    try {
-      console.log('🔴 BUSCANDO PARTIDAS AO VIVO - ENDPOINT DEDICADO...');
+    return await CacheUtils.withCache(
+      'liveMatches',
+      { date: date || 'today' },
+      async () => {
+        console.log('🔴 BUSCANDO PARTIDAS AO VIVO - ENDPOINT DEDICADO...');
 
-      // Cache key
-      const cacheKey = `live-matches-dedicated-${date || 'today'}`;
-      const cached = cache.get(cacheKey);
+        // Usar dados do banco local para partidas ao vivo
+        const response = await fetch('/api/db/live-matches', {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+        });
 
-      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        console.log('📋 Cache hit para partidas ao vivo dedicado');
-        return cached.data;
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to fetch live matches');
+        }
+
+        const liveMatches = data.data || [];
+
+        console.log(`🔴 PARTIDAS AO VIVO ENCONTRADAS: ${liveMatches.length}`);
+        console.log(`📊 Fonte: ${data.source}, Estratégias: ${data.strategies_used?.join(', ')}`);
+
+        return liveMatches;
       }
-
-      // Usar endpoint dedicado para partidas ao vivo
-      const response = await fetch('/api/footystats/live', {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to fetch live matches');
-      }
-
-      const liveMatches = data.data || [];
-
-      // Cache result
-      cache.set(cacheKey, { data: liveMatches, timestamp: Date.now() });
-
-      console.log(`🔴 PARTIDAS AO VIVO ENCONTRADAS: ${liveMatches.length}`);
-      console.log(`📊 Fonte: ${data.source}, Estratégias: ${data.strategies_used?.join(', ')}`);
-
-      return liveMatches;
-
-    } catch (error) {
-      console.error('❌ Erro crítico ao buscar partidas ao vivo:', error);
-      return []; // Retorna array vazio em caso de erro
-    }
+    );
   }
 
   /**
@@ -170,7 +155,7 @@ export class NewFootyStatsAPI {
           params.append('date', dateStr);
           params.append('type', 'upcoming');
 
-          const response = await fetch(`/api/footystats/matches?${params}`, {
+          const response = await fetch(`/api/db/matches?${params}`, {
             method: 'GET',
             headers: {
               'Accept': 'application/json',
