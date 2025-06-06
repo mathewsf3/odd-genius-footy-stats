@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EnhancedLiveMatchCard } from "@/components/EnhancedLiveMatchCard";
+import { MatchCard } from "@/components/MatchCard";
 import { Match } from "@/types";
 import { Play, RefreshCw, Loader2, Clock, Wifi } from "lucide-react";
 
