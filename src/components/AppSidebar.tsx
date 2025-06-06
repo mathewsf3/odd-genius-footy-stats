@@ -3,7 +3,7 @@
 import { Calendar, Home, Trophy, Play, Clock, BarChart3, Settings, Target, Zap, Wifi } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import Image from "next/image";
+import { SidebarLogo } from "@/components/Logo";
 import {
   Sidebar,
   SidebarContent,
@@ -66,15 +66,7 @@ export function AppSidebar() {
   return (
     <Sidebar variant="inset" className="bg-gray-50 border-r border-gray-200">
       <SidebarHeader className="border-b border-gray-200 bg-gray-50">
-        <div className="flex items-center justify-center px-4 py-8">
-          <Image
-            src="/logo.png"
-            alt="Odd Genius Logo"
-            width={180}
-            height={180}
-            className="object-contain max-w-full"
-          />
-        </div>
+        <SidebarLogo />
       </SidebarHeader>
       
       <SidebarContent className="px-4 py-6 bg-gray-50 overflow-hidden">

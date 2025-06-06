@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CleanMatchCard } from "@/components/CleanMatchCard";
-import { FootyStatsAPI, isMatchLive } from "@/lib/api";
+import { EnhancedLiveMatchCard } from "@/components/EnhancedLiveMatchCard";
+import { NewFootyStatsAPI } from "@/lib/newAPI";
 import { Match } from "@/types";
 import { Play, Clock, Target, Loader2, Calendar, Eye, RefreshCw } from "lucide-react";
 import Link from "next/link";
@@ -25,29 +26,32 @@ export default function Home() {
 
         console.log('🔄 Buscando dados REAIS da API FootyStats...');
 
+        // Buscar partidas ao vivo diretamente - DADOS REAIS
+        const live = await NewFootyStatsAPI.getLiveMatches();
+        console.log('🔴 Partidas ao vivo encontradas:', live?.length || 0, 'partidas');
+        if (live && live.length > 0) {
+          setLiveMatches(live.slice(0, 6));
+        }
+
         // Buscar partidas de hoje - DADOS REAIS
-        const today = await FootyStatsAPI.getTodaysMatches();
+        const today = await NewFootyStatsAPI.getTodaysMatches();
         console.log('📊 Partidas de hoje encontradas:', today?.length || 0, 'partidas');
 
         if (today && today.length > 0) {
           setTodayMatches(today);
 
-          // Filtrar partidas ao vivo - DADOS REAIS (apenas partidas que estão acontecendo AGORA)
-          const live = today.filter(match => isMatchLive(match));
-          console.log('🔴 Partidas ao vivo encontradas:', live.length, 'partidas');
-          setLiveMatches(live.slice(0, 6));
-
           // Para partidas futuras, usar as partidas de hoje que são futuras E NÃO estão ao vivo
-          const todayFuture = today.filter(match =>
+          const liveMatchIds = live.map((m: Match) => m.id);
+          const todayFuture = today.filter((match: Match) =>
             match.status === 'incomplete' &&
             match.date_unix * 1000 > Date.now() &&
-            !isMatchLive(match) // Excluir partidas ao vivo
+            !liveMatchIds.includes(match.id) // Excluir partidas que já estão na lista de ao vivo
           );
 
           // Se não há partidas futuras hoje, buscar próximas partidas
           if (todayFuture.length === 0) {
             console.log('⏰ Nenhuma partida futura hoje, buscando próximas partidas...');
-            const upcoming = await FootyStatsAPI.getUpcomingMatches(7);
+            const upcoming = await NewFootyStatsAPI.getUpcomingMatches(7);
             if (upcoming && upcoming.length > 0) {
               setUpcomingMatches(upcoming.slice(0, 6));
               console.log('⏰ Próximas partidas encontradas:', upcoming.length, 'partidas');
@@ -58,7 +62,7 @@ export default function Home() {
           }
         } else {
           // Se não conseguir dados de hoje, buscar próximas partidas
-          const upcoming = await FootyStatsAPI.getUpcomingMatches(3);
+          const upcoming = await NewFootyStatsAPI.getUpcomingMatches(3);
           console.log('⏰ Próximas partidas encontradas:', upcoming?.length || 0, 'partidas');
 
           if (upcoming && upcoming.length > 0) {
@@ -226,10 +230,9 @@ export default function Home() {
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {liveMatches.slice(0, 6).map((match) => (
-                <CleanMatchCard
+                <EnhancedLiveMatchCard
                   key={match.id}
                   match={match}
-                  variant="live"
                 />
               ))}
             </div>

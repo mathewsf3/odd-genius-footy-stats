@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FootyStatsAPI, formatMatchTime, formatMatchDate, isMatchLive } from "@/lib/api";
+import { NewFootyStatsAPI } from "@/lib/newAPI";
+import { formatMatchTime, formatMatchDate, isMatchLive } from "@/lib/api";
 import { Match, H2HStats } from "@/types";
 import { 
   Play, 

@@ -1,0 +1,136 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Tabela de ligas/temporadas
+model League {
+  id          Int      @id @default(autoincrement())
+  season_id   Int      @unique // ID único da temporada fornecido pelo FootyStats
+  league_name String   // Nome da competição e ano
+  country     String
+  is_current  Boolean  @default(false) // Flag se é temporada atual
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Relacionamentos
+  teams   TeamSeason[]
+  matches Match[]
+
+  @@map("leagues")
+}
+
+// Tabela de times
+model Team {
+  id         Int      @id @default(autoincrement())
+  team_id    Int      @unique // ID do time na API FootyStats
+  name       String
+  short_name String?
+  country    String?
+  logo_url   String?
+  founded    Int?
+  venue      String?
+  capacity   Int?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relacionamentos
+  seasons      TeamSeason[]
+  home_matches Match[]      @relation("HomeTeam")
+  away_matches Match[]      @relation("AwayTeam")
+
+  @@map("teams")
+}
+
+// Tabela associativa: qual time participou de qual temporada
+model TeamSeason {
+  id        Int @id @default(autoincrement())
+  team_id   Int
+  league_id Int
+
+  // Estatísticas da temporada (podem ser JSON ou campos específicos)
+  points              Int?
+  position            Int?
+  matches_played      Int?
+  wins                Int?
+  draws               Int?
+  losses              Int?
+  goals_for           Int?
+  goals_against       Int?
+  goal_difference     Int?
+  seasonScoredAVG     Float?
+  seasonConcededAVG   Float?
+  seasonScoredAVG_home Float?
+  seasonScoredAVG_away Float?
+  stats_json          String? // Para armazenar JSON completo de stats
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relacionamentos
+  team   Team   @relation(fields: [team_id], references: [team_id])
+  league League @relation(fields: [league_id], references: [season_id])
+
+  @@unique([team_id, league_id])
+  @@map("team_seasons")
+}
+
+// Tabela de partidas
+model Match {
+  id               Int      @id @default(autoincrement())
+  match_id         Int      @unique // ID do jogo na API FootyStats
+  home_team_id     Int
+  away_team_id     Int
+  league_id        Int      // Referência para season_id
+  date_unix        Int
+  status           String   // incomplete, live, complete, etc.
+  homeGoalCount    Int      @default(0)
+  awayGoalCount    Int      @default(0)
+  stadium_name     String?
+  stadium_location String?
+  refereeID        Int?
+
+  // Estatísticas da partida
+  team_a_possession    Int?
+  team_b_possession    Int?
+  team_a_shots         Int?
+  team_b_shots         Int?
+  team_a_shotsOnTarget Int?
+  team_b_shotsOnTarget Int?
+  team_a_fouls         Int?
+  team_b_fouls         Int?
+  team_a_yellow_cards  Int?
+  team_b_yellow_cards  Int?
+  team_a_red_cards     Int?
+  team_b_red_cards     Int?
+
+  // Odds e potenciais
+  odds_ft_1        Float?
+  odds_ft_X        Float?
+  odds_ft_2        Float?
+  btts_potential   Float?
+  o15_potential    Float?
+  o25_potential    Float?
+  o35_potential    Float?
+  avg_potential    Float?
+  home_ppg         Float?
+  away_ppg         Float?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relacionamentos
+  home_team Team   @relation("HomeTeam", fields: [home_team_id], references: [team_id])
+  away_team Team   @relation("AwayTeam", fields: [away_team_id], references: [team_id])
+  league    League @relation(fields: [league_id], references: [season_id])
+
+  @@map("matches")
+}

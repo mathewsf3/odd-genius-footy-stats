@@ -22,9 +22,9 @@ export class FootyStatsAPI {
       const targetDate = date || new Date().toISOString().split('T')[0];
       console.log('🔍 Buscando partidas para:', targetDate);
 
-      // Use our internal API route to avoid CORS issues
-      const url = `/api/matches?date=${targetDate}`;
-      console.log('🌐 URL da API interna:', url);
+      // Use our local database API route
+      const url = `/api/db/matches?date=${targetDate}`;
+      console.log('🗄️ URL da API local (banco):', url);
 
       const response = await fetch(url, {
         method: 'GET',
@@ -52,22 +52,22 @@ export class FootyStatsAPI {
     }
   }
 
-  // Get upcoming matches
+  // Get upcoming matches (now using local database)
   static async getUpcomingMatches(days: number = 7): Promise<Match[]> {
     try {
       const matches: Match[] = [];
       const today = new Date();
 
-      console.log('🔍 Buscando próximas partidas para', days, 'dias');
+      console.log('🔍 Buscando próximas partidas do banco local para', days, 'dias');
 
-      // Get matches for next few days using our internal API
-      for (let i = 1; i <= Math.min(days, 3); i++) { // Limit to 3 days
+      // Get matches for next few days using our local database API
+      for (let i = 0; i <= Math.min(days, 14); i++) { // Removido limite de 3 dias
         const date = new Date(today);
         date.setDate(today.getDate() + i);
         const dateStr = date.toISOString().split('T')[0];
 
         try {
-          const url = `/api/matches?date=${dateStr}`;
+          const url = `/api/db/matches?date=${dateStr}`;
 
           const response = await fetch(url, {
             method: 'GET',
@@ -81,9 +81,19 @@ export class FootyStatsAPI {
             const dayMatches = data.data || [];
 
             if (Array.isArray(dayMatches)) {
-              // Filter for upcoming matches
+              // Filter for upcoming matches (futuras e não ao vivo)
               const upcomingDayMatches = dayMatches.filter((match: Match) => {
-                return match.status === 'incomplete' && match.date_unix * 1000 > Date.now();
+                const matchTime = match.date_unix * 1000;
+                const now = Date.now();
+                const timeDiff = matchTime - now;
+                const hoursFromNow = timeDiff / (1000 * 60 * 60);
+
+                // Considerar upcoming se:
+                // 1. Status é incomplete E está no futuro
+                // 2. E NÃO está dentro da janela de "ao vivo" (3 horas)
+                return match.status === 'incomplete' &&
+                       matchTime > now &&
+                       hoursFromNow > 3; // Mais de 3 horas no futuro
               });
 
               matches.push(...upcomingDayMatches);
@@ -103,43 +113,38 @@ export class FootyStatsAPI {
     }
   }
 
-  // Get live matches
+  // Get live matches (now using local database with smart endpoint)
   static async getLiveMatches(): Promise<Match[]> {
     try {
-      // Try multiple dates to find live matches
-      const dates = [
-        new Date().toISOString().split('T')[0], // Today
-        new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Yesterday
-        new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Tomorrow
-      ];
+      console.log('🔍 Buscando partidas ao vivo do banco local...');
 
-      let allMatches: Match[] = [];
+      const response = await fetch('/api/db/live-matches', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
 
-      for (const date of dates) {
-        const params = {
-          key: API_KEY,
-          date: date
-        };
-
-        const response = await api.get('/todays-matches', { params });
-        const dayMatches = response.data.data || response.data || [];
-
-        if (Array.isArray(dayMatches)) {
-          allMatches.push(...dayMatches);
-        }
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      // Filter for live matches with multiple status checks
-      const liveMatches = allMatches.filter((match: Match) =>
-        match.status === 'live' ||
-        match.status === 'incomplete' ||
-        match.status === 'inprogress' ||
-        match.status === 'playing' ||
-        (match.status === 'complete' && match.homeGoalCount >= 0 && match.awayGoalCount >= 0) // Recently completed
-      );
+      const data = await response.json();
 
-      console.log('🔍 Live matches search - Total matches found:', allMatches.length);
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to fetch live matches');
+      }
+
+      const liveMatches = data.data || [];
+
       console.log('🔍 Live matches search - Live matches found:', liveMatches.length);
+      console.log('🔍 Debug info:', data.debug);
+
+      if (liveMatches.length > 0) {
+        console.log('🔴 Partidas ao vivo encontradas:', liveMatches.map((m: Match) =>
+          `${m.homeName} vs ${m.awayName} (${m.status}) - ${new Date(m.date_unix * 1000).toLocaleString('pt-BR')}`
+        ));
+      }
 
       return liveMatches;
     } catch (error) {
@@ -185,11 +190,30 @@ export class FootyStatsAPI {
     }
   }
 
-  // Get league list
+  // Get league list (now using local database)
   static async getLeagues(): Promise<League[]> {
     try {
-      const response = await api.get('/leagues');
-      return response.data.data || response.data;
+      console.log('🔍 Buscando ligas do banco local...');
+
+      const response = await fetch('/api/db/leagues?current=true', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to fetch leagues');
+      }
+
+      console.log(`📊 Encontradas ${data.data.length} ligas no banco`);
+      return data.data || [];
     } catch (error) {
       console.error('Error fetching leagues:', error);
       throw new Error('Failed to fetch leagues');
@@ -197,11 +221,15 @@ export class FootyStatsAPI {
   }
 
   // Get league matches
-  static async getLeagueMatches(leagueId: number, season?: string): Promise<Match[]> {
+  static async getLeagueMatches(seasonId: number, page: number = 1): Promise<Match[]> {
     try {
-      const params: any = { league_id: leagueId };
-      if (season) params.season = season;
-      
+      const params: any = {
+        key: API_KEY,
+        season_id: seasonId,
+        page: page,
+        max_per_page: 500
+      };
+
       const response = await api.get('/league-matches', { params });
       return response.data.data || response.data;
     } catch (error) {
@@ -210,16 +238,41 @@ export class FootyStatsAPI {
     }
   }
 
-  // Get team details
+  // Get team details (now using local database)
   static async getTeamDetails(teamId: number): Promise<Team> {
     try {
-      const params = {
-        key: API_KEY,
-        team_id: teamId
-      };
+      console.log(`🔍 Buscando dados do time ${teamId} no banco local...`);
 
-      const response = await api.get('/team', { params });
-      return response.data.data || response.data;
+      const response = await fetch(`/api/db/teams/${teamId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to fetch team details');
+      }
+
+      // Transform to expected format
+      const teamData = data.data;
+      return {
+        id: teamData.id,
+        name: teamData.name,
+        cleanName: teamData.name,
+        shortName: teamData.short_name || teamData.name,
+        logo: teamData.logo || '',
+        country: teamData.country || '',
+        founded: teamData.founded || 0,
+        venue: teamData.venue || '',
+        capacity: teamData.capacity || 0
+      };
     } catch (error) {
       console.error('Error fetching team details:', error);
       // Return a fallback team object instead of throwing
@@ -256,12 +309,15 @@ export class FootyStatsAPI {
   }
 
   // Get league table/standings
-  static async getLeagueTable(leagueId: number, season?: string): Promise<any[]> {
+  static async getLeagueTable(seasonId: number): Promise<any[]> {
     try {
-      const params: any = { league_id: leagueId };
-      if (season) params.season = season;
-      
-      const response = await api.get('/league-table', { params });
+      const params: any = {
+        key: API_KEY,
+        season_id: seasonId,
+        include: 'stats'
+      };
+
+      const response = await api.get('/league-tables', { params });
       return response.data.data || response.data;
     } catch (error) {
       console.error('Error fetching league table:', error);
@@ -270,11 +326,13 @@ export class FootyStatsAPI {
   }
 
   // Get BTTS stats for a league
-  static async getBTTSStats(leagueId: number, season?: string): Promise<any[]> {
+  static async getBTTSStats(seasonId: number): Promise<any[]> {
     try {
-      const params: any = { league_id: leagueId };
-      if (season) params.season = season;
-      
+      const params: any = {
+        key: API_KEY,
+        season_id: seasonId
+      };
+
       const response = await api.get('/btts-stats', { params });
       return response.data.data || response.data;
     } catch (error) {
@@ -284,11 +342,13 @@ export class FootyStatsAPI {
   }
 
   // Get Over 2.5 stats for a league
-  static async getOver25Stats(leagueId: number, season?: string): Promise<any[]> {
+  static async getOver25Stats(seasonId: number): Promise<any[]> {
     try {
-      const params: any = { league_id: leagueId };
-      if (season) params.season = season;
-      
+      const params: any = {
+        key: API_KEY,
+        season_id: seasonId
+      };
+
       const response = await api.get('/over-2.5-stats', { params });
       return response.data.data || response.data;
     } catch (error) {
@@ -317,7 +377,29 @@ export const formatMatchDate = (unixTimestamp: number): string => {
 };
 
 export const isMatchLive = (match: Match): boolean => {
-  return match.status === 'live' || match.status === 'incomplete';
+  const now = Date.now();
+  const matchTime = match.date_unix * 1000;
+  const timeDiff = Math.abs(matchTime - now);
+  const hoursFromMatch = timeDiff / (1000 * 60 * 60);
+
+  // Considerar ao vivo se:
+  // 1. Status indica explicitamente ao vivo
+  const isLiveStatus = match.status === 'live' ||
+                     match.status === 'inprogress' ||
+                     match.status === 'playing';
+
+  // 2. OU se está dentro de 3 horas do horário da partida E tem dados de jogo
+  const isInGameWindow = hoursFromMatch <= 3;
+  const hasGameData = (match.homeGoalCount > 0 || match.awayGoalCount > 0) ||
+                     (match.team_a_possession && match.team_a_possession > 0) ||
+                     (match.team_b_possession && match.team_b_possession > 0);
+
+  // 3. OU se é recentemente completada (até 2 horas após) e tem dados
+  const isRecentlyCompleted = match.status === 'complete' &&
+                            hoursFromMatch <= 2 &&
+                            hasGameData;
+
+  return isLiveStatus || (isInGameWindow && hasGameData) || isRecentlyCompleted;
 };
 
 export const getMatchResult = (match: Match): string => {

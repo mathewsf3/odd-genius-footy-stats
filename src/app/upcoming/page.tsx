@@ -5,10 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MatchCard } from "@/components/MatchCard";
-import { UpcomingMatchCard } from "@/components/UpcomingMatchCard";
-import { EnhancedMatchCard } from "@/components/EnhancedMatchCard";
-import { FootyStatsAPI } from "@/lib/api";
+import { CleanMatchCard } from "@/components/CleanMatchCard";
+import { NewFootyStatsAPI } from "@/lib/newAPI";
 import { Match } from "@/types";
 import { Clock, Calendar, Loader2, Filter } from "lucide-react";
 import { formatMatchDate } from "@/lib/api";
@@ -26,11 +24,11 @@ export default function UpcomingMatchesPage() {
       setError(null);
 
       // Fetch today's matches
-      const today = await FootyStatsAPI.getTodaysMatches();
+      const today = await NewFootyStatsAPI.getTodaysMatches();
       setTodayMatches(today);
 
       // Fetch upcoming matches
-      const upcoming = await FootyStatsAPI.getUpcomingMatches(selectedDays);
+      const upcoming = await NewFootyStatsAPI.getUpcomingMatches(selectedDays);
       setUpcomingMatches(upcoming);
 
     } catch (err) {
@@ -195,11 +193,10 @@ export default function UpcomingMatchesPage() {
                 </div>
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {matches.map((match) => (
-                    <EnhancedMatchCard
+                    <CleanMatchCard
                       key={match.id}
                       match={match}
-                      variant="default"
-                      showDetails={true}
+                      variant="upcoming"
                     />
                   ))}
                 </div>
@@ -230,10 +227,10 @@ export default function UpcomingMatchesPage() {
                 </div>
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {matches.map((match) => (
-                    <UpcomingMatchCard
+                    <CleanMatchCard
                       key={match.id}
                       match={match}
-                      showPredictions={true}
+                      variant="upcoming"
                     />
                   ))}
                 </div>

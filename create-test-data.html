@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Criar Dados de Teste</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Criar Dados de Teste - Odd Genius Footy Stats</h1>
+    
+    <button onclick="createTestMatches()">Criar Partidas de Teste</button>
+    <button onclick="createMoreTestMatches()">Criar Mais Partidas de Teste</button>
+    <button onclick="checkLiveMatches()">Verificar Partidas ao Vivo</button>
+    <button onclick="checkStatus()">Verificar Status do Banco</button>
+    
+    <div id="results"></div>
+
+    <script>
+        function addResult(message, isSuccess = true) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${isSuccess ? 'success' : 'error'}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            results.insertBefore(div, results.firstChild);
+        }
+
+        async function createTestMatches() {
+            try {
+                addResult('🔄 Criando partidas de teste...', true);
+                const response = await fetch('/api/debug/add-test-matches', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addResult(`✅ ${data.message}`, true);
+                    addResult(`📊 Times: ${data.data.teams_created}, Partidas: ${data.data.matches_created}`, true);
+                } else {
+                    addResult(`❌ Erro: ${data.message}`, false);
+                }
+            } catch (error) {
+                addResult(`❌ Erro: ${error.message}`, false);
+            }
+        }
+
+        async function createMoreTestMatches() {
+            try {
+                addResult('🔄 Criando mais partidas de teste...', true);
+                const response = await fetch('/api/debug/add-more-test-matches', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addResult(`✅ ${data.message}`, true);
+                    addResult(`📊 Times: ${data.data.teams_created}, Partidas: ${data.data.matches_created}`, true);
+                    addResult(`🔴 Ao vivo: ${data.data.test_scenarios.live_matches}, ⏰ Futuras: ${data.data.test_scenarios.upcoming_matches}`, true);
+                } else {
+                    addResult(`❌ Erro: ${data.message}`, false);
+                }
+            } catch (error) {
+                addResult(`❌ Erro: ${error.message}`, false);
+            }
+        }
+
+        async function checkLiveMatches() {
+            try {
+                addResult('🔍 Verificando partidas ao vivo...', true);
+                const response = await fetch('/api/db/live-matches');
+                const data = await response.json();
+                
+                if (data.success) {
+                    addResult(`🔴 Partidas ao vivo encontradas: ${data.count}`, true);
+                    if (data.count > 0) {
+                        data.data.forEach(match => {
+                            addResult(`  - ${match.homeName} vs ${match.awayName} (${match.status}) - ${match.homeGoalCount}-${match.awayGoalCount}`, true);
+                        });
+                    }
+                } else {
+                    addResult(`❌ Erro: ${data.message}`, false);
+                }
+            } catch (error) {
+                addResult(`❌ Erro: ${error.message}`, false);
+            }
+        }
+
+        async function checkStatus() {
+            try {
+                addResult('🔍 Verificando status do banco...', true);
+                const response = await fetch('/api/sync?action=status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    addResult(`📊 Ligas: ${data.data.leagues}, Times: ${data.data.teams}, Partidas: ${data.data.matches}`, true);
+                    addResult(`🕒 Última atualização: ${data.data.lastUpdate || 'Nunca'}`, true);
+                } else {
+                    addResult(`❌ Erro: ${data.message}`, false);
+                }
+            } catch (error) {
+                addResult(`❌ Erro: ${error.message}`, false);
+            }
+        }
+
+        // Verificar status inicial
+        window.onload = function() {
+            addResult('🚀 Página carregada. Use os botões para criar dados de teste.', true);
+            checkStatus();
+        };
+    </script>
+</body>
+</html>

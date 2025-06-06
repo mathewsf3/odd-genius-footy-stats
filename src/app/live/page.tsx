@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MatchCard } from "@/components/MatchCard";
 import { LiveMatchCard } from "@/components/LiveMatchCard";
-import { FootyStatsAPI } from "@/lib/api";
+import { NewFootyStatsAPI } from "@/lib/newAPI";
 import { Match } from "@/types";
 import { Play, RefreshCw, Loader2, Clock } from "lucide-react";
 
@@ -26,7 +26,7 @@ export default function LiveMatchesPage() {
       }
       setError(null);
 
-      const matches = await FootyStatsAPI.getLiveMatches();
+      const matches = await NewFootyStatsAPI.getLiveMatches();
       setLiveMatches(matches);
       setLastUpdated(new Date());
 
