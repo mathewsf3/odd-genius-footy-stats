@@ -213,12 +213,15 @@ export function LiveMatches({
             </div>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      ) : (        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {liveMatches.slice(0, maxMatches).map((match) => (
-            <EnhancedLiveMatchCard
+            <MatchCard
               key={match.id}
               match={match}
+              variant="live"
+              showVerification={true}
+              isVerified={true}
+              dataSource="FootyStats API"
             />
           ))}
         </div>

@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CleanMatchCard } from "@/components/CleanMatchCard";
+import { MatchCard } from "@/components/MatchCard";
 import { Match } from "@/types";
 import { Calendar, RefreshCw, Loader2, Clock, Timer } from "lucide-react";
 
@@ -253,22 +254,17 @@ export function UpcomingMatches({
         </Card>
       ) : (
         <div className="space-y-4">
-          {/* Today's matches with countdown */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {/* Today's matches with countdown */}          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {matchesToShow.slice(0, maxMatches).map((match) => (
-              <div key={match.id} className="relative">
-                <CleanMatchCard
-                  match={match}
-                  variant="upcoming"
-                />
-                {/* Countdown overlay */}
-                <div className="absolute top-3 right-3">
-                  <Badge className="bg-green-500 text-white text-xs">
-                    <Timer className="w-3 h-3 mr-1" />
-                    {getCountdown(match.date_unix)}
-                  </Badge>
-                </div>
-              </div>
+              <MatchCard
+                key={match.id}
+                match={match}
+                variant="upcoming"
+                showCountdown={true}
+                showVerification={true}
+                isVerified={true}
+                dataSource="FootyStats API"
+              />
             ))}
           </div>
 

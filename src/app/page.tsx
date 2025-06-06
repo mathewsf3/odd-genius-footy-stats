@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LiveMatches } from "@/components/LiveMatches";
 import { UpcomingMatches } from "@/components/UpcomingMatches";
+import { DataStatus } from "@/components/DataStatus";
+import { DataIntegrityDashboard } from "@/components/DataIntegrityDashboard";
 import { Match } from "@/types";
 import { Play, Clock, Target, Loader2, Calendar, Eye, RefreshCw, Wifi } from "lucide-react";
 import Link from "next/link";
@@ -162,6 +164,24 @@ export default function Home() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Data Status and Integrity Dashboard */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <DataStatus
+            lastUpdate={lastUpdate}
+            source="FootyStats API"
+            isLive={dashboardStats.liveCount > 0}
+            systemStatus={dashboardStats.systemStatus as 'online' | 'offline' | 'degraded'}
+            onRefresh={fetchDashboardStats}
+          />
+        </div>
+        <div>
+          <DataIntegrityDashboard
+            onRefresh={fetchDashboardStats}
+          />
+        </div>
       </div>
 
       {/* System Status */}

@@ -24,10 +24,10 @@ export function isMatchToday(match: Match): boolean {
 export function isMatchUpcoming(match: Match): boolean {
   const now = Date.now();
   const matchTime = match.date_unix * 1000;
-  
-  return matchTime > now && 
-         (match.status === 'incomplete' || 
-          match.status === 'scheduled' || 
+
+  return matchTime > now &&
+         (match.status === 'incomplete' ||
+          match.status === 'scheduled' ||
           match.status === 'upcoming');
 }
 
@@ -35,8 +35,8 @@ export function isMatchUpcoming(match: Match): boolean {
  * Check if a match is currently live
  */
 export function isMatchLive(match: Match): boolean {
-  return match.status === 'live' || 
-         match.status === 'inprogress' || 
+  return match.status === 'live' ||
+         match.status === 'inprogress' ||
          match.status === 'playing';
 }
 

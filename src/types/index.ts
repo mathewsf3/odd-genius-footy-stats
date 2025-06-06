@@ -8,7 +8,7 @@ export interface Match {
   home_image: string;
   away_image: string;
   season: string;
-  status: 'complete' | 'suspended' | 'canceled' | 'incomplete' | 'live';
+  status: 'complete' | 'suspended' | 'canceled' | 'incomplete' | 'live' | 'inprogress' | 'playing' | 'scheduled' | 'upcoming';
   roundID: number;
   game_week: number;
   revised_game_week: number;
