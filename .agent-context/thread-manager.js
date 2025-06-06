@@ -63,7 +63,10 @@ class ThreadManager {
       return false;
     }
 
-    // Marcar agente como ativo
+    // Marcar agente como ativo (criar se não existir)
+    if (!thread.agents[agentType]) {
+      thread.agents[agentType] = { joined: false, lastSeen: null };
+    }
     thread.agents[agentType].joined = true;
     thread.agents[agentType].lastSeen = new Date().toISOString();
 
