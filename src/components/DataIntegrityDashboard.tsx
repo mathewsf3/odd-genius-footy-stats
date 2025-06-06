@@ -19,7 +19,7 @@ import {
 interface DataIntegrityStats {
   verifiedMatches: number;
   totalMatches: number;
-  lastSync: Date;
+  lastSync: Date | string;
   apiStatus: 'healthy' | 'degraded' | 'down';
   competitions: number;
   coverage: string;
@@ -223,9 +223,9 @@ export function DataIntegrityDashboard({ onRefresh }: DataIntegrityDashboardProp
             <span className="text-sm font-medium">Última Sincronização</span>
           </div>
           <span className="text-sm text-muted-foreground">
-            {stats.lastSync.toLocaleTimeString('pt-BR', { 
-              hour: '2-digit', 
-              minute: '2-digit' 
+            {new Date(stats.lastSync).toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit'
             })}
           </span>
         </div>
