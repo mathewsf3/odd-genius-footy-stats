@@ -13,8 +13,8 @@
     "sync:initial": "node scripts/initial-sync.js",
     "sync:today": "node -e \"require('./src/lib/syncAll.ts').syncTodayData().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
     "test:backend": "node test-backend.js",
-    "agent:backend": "AGENT_TYPE=backend node scripts/agent-backend.js",
-    "agent:frontend": "AGENT_TYPE=frontend node scripts/agent-frontend.js",
+    "agent:backend": "cross-env AGENT_TYPE=backend node scripts/agent-backend.js",
+    "agent:frontend": "cross-env AGENT_TYPE=frontend node scripts/agent-frontend.js",
     "agent:monitor": "node scripts/monitor-agents.js",
     "agent:clean": "rm -rf .agent-context",
     "agent:status": "node -e \"const ThreadManager = require('./.agent-context/thread-manager'); const tm = new ThreadManager(); console.log(JSON.stringify(tm.getActiveThread(), null, 2));\""
@@ -55,6 +55,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^7.0.3",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
     "tailwindcss": "^4",
