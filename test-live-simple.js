@@ -1,18 +1,74 @@
-// Teste simples para verificar dados de partidas ao vivo
-console.log('🔴 Teste de dados de partidas ao vivo');
-console.log('📋 Para testar manualmente:');
-console.log('');
-console.log('1. Inicie o servidor: npm run dev');
-console.log('2. Abra o navegador em: http://localhost:3000');
-console.log('3. Verifique se as partidas ao vivo mostram:');
-console.log('   ✅ Score real (não 0x0)');
-console.log('   ✅ Posse de bola real (não N/A)');
-console.log('   ✅ Tempo real da partida');
-console.log('');
-console.log('4. Ou teste via API diretamente:');
-console.log('   curl http://localhost:3000/api/matches');
-console.log('   curl http://localhost:3000/api/fs/match/[ID_DA_PARTIDA]');
-console.log('');
+const http = require('http');
+
+async function testLiveMatches() {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'localhost',
+      port: 3001,
+      path: '/api/live-matches',
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    };
+
+    const req = http.request(options, (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          const response = JSON.parse(data);
+
+          if (res.statusCode === 200 && response.success) {
+            console.log('✅ Live OK');
+            console.log(`📊 ${response.count} partidas ao vivo encontradas`);
+            resolve(response);
+          } else {
+            console.log('❌ Live FAIL');
+            console.log(`Status: ${res.statusCode}`);
+            console.log(`Response: ${data}`);
+            reject(new Error(`HTTP ${res.statusCode}`));
+          }
+        } catch (error) {
+          console.log('❌ Live FAIL - Invalid JSON');
+          console.log(`Response: ${data}`);
+          reject(error);
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      console.log('❌ Live FAIL - Connection Error');
+      console.log(`Error: ${error.message}`);
+      reject(error);
+    });
+
+    req.setTimeout(5000, () => {
+      console.log('❌ Live FAIL - Timeout');
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+
+    req.end();
+  });
+}
+
+// Execute test
+if (require.main === module) {
+  testLiveMatches()
+    .then(() => {
+      process.exit(0);
+    })
+    .catch(() => {
+      process.exit(1);
+    });
+}
+
+module.exports = { testLiveMatches };
 console.log('🎯 Dados esperados para partidas ao vivo:');
 console.log('   - homeGoalCount: número real (não null)');
 console.log('   - awayGoalCount: número real (não null)');

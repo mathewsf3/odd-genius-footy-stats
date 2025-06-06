@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_KEY = '4fd202fbc338fbd450e91761c7b83641606b2a4da37dd1a7d29b4cd1d4de9756';
-const API_BASE_URL = 'https://api.football-data-api.com';
+const FOOTYSTATS_API_KEY = process.env.FOOTYSTATS_API_KEY;
+const FOOTYSTATS_BASE_URL = process.env.FOOTYSTATS_BASE_URL || 'https://api.football-data-api.com';
 
 export async function GET(
   request: NextRequest,
@@ -9,55 +9,82 @@ export async function GET(
 ) {
   try {
     const { id: matchId } = await params;
-    
+
+    if (!FOOTYSTATS_API_KEY) {
+      return NextResponse.json({
+        success: false,
+        error: 'FOOTYSTATS_API_KEY not configured'
+      }, { status: 500 });
+    }
+
     if (!matchId) {
       return NextResponse.json({
         success: false,
-        error: 'ID da partida é obrigatório',
-        data: null
+        error: 'Match ID is required'
       }, { status: 400 });
     }
-    
-    console.log('🔍 Buscando detalhes da partida:', matchId);
-    
-    const url = `${API_BASE_URL}/match?key=${API_KEY}&match_id=${matchId}`;
-    
+
+    const url = `${FOOTYSTATS_BASE_URL}/match?key=${FOOTYSTATS_API_KEY}&id=${matchId}`;
+
     const response = await fetch(url, {
-      method: 'GET',
       headers: {
         'Accept': 'application/json',
         'User-Agent': 'OddGeniusFootyStats/1.0',
       },
+      next: { revalidate: 60 }
     });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
 
-    console.log('📊 Resposta da API de detalhes:', {
-      success: data.success,
-      hasData: !!data.data,
-      message: data.message
-    });
+    if (!response.ok) {
+      throw new Error(`FootyStats API error: ${response.status}`);
+    }
+
+    const apiData = await response.json();
+    const match = apiData.data;
+
+    if (!match) {
+      return NextResponse.json({
+        success: false,
+        error: 'Match not found'
+      }, { status: 404 });
+    }
+
+    // Transform to standardized format
+    const transformedMatch = {
+      id: match.id,
+      homeName: match.home_name,
+      awayName: match.away_name,
+      homeGoals: match.homeGoalCount || 0,
+      awayGoals: match.awayGoalCount || 0,
+      minute: match.minute || null,
+      status: match.status,
+      kickOff: new Date(match.date_unix * 1000).toISOString(),
+      homeImage: match.home_image,
+      awayImage: match.away_image,
+      competition: match.competition_name || match.league_name || 'Unknown League',
+      stadium: match.stadium_name || null,
+      possession: {
+        home: match.team_a_possession || null,
+        away: match.team_b_possession || null
+      },
+      stats: {
+        corners: { home: match.team_a_corners || 0, away: match.team_b_corners || 0 },
+        shots: { home: match.team_a_shots || 0, away: match.team_b_shots || 0 },
+        fouls: { home: match.team_a_fouls || 0, away: match.team_b_fouls || 0 }
+      }
+    };
 
     return NextResponse.json({
       success: true,
-      data: data.data || data,
-      matchId: matchId
+      data: transformedMatch,
+      timestamp: new Date().toISOString()
     });
-    
-  } catch (error) {
-    console.error('❌ Erro ao buscar detalhes da partida:', error);
 
-    const { id: errorMatchId } = await params;
+  } catch (error) {
+    console.error('❌ Error fetching match details:', error);
 
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Erro desconhecido',
-      data: null,
-      matchId: errorMatchId
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
