@@ -8,6 +8,9 @@ import { LiveMatches } from "@/components/LiveMatches";
 import { UpcomingMatches } from "@/components/UpcomingMatches";
 import { DataStatus } from "@/components/DataStatus";
 import { DataIntegrityDashboard } from "@/components/DataIntegrityDashboard";
+import { DataQualityFilters, QualityFilters } from "@/components/DataQualityFilters";
+import { DataAlerts } from "@/components/DataAlerts";
+import { ValidationSummary } from "@/components/ValidationSummary";
 import { Match } from "@/types";
 import { Play, Clock, Target, Loader2, Calendar, Eye, RefreshCw, Wifi } from "lucide-react";
 import Link from "next/link";
@@ -22,6 +25,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [qualityFilters, setQualityFilters] = useState<QualityFilters>({
+    onlyVerified: true,
+    hideUnverified: false,
+    dataSource: 'all',
+    minQualityScore: 80,
+    showTestData: false
+  });
 
   const fetchDashboardStats = async () => {
     try {
@@ -184,6 +194,12 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Validation Summary and Alerts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ValidationSummary />
+        <DataAlerts maxAlerts={3} />
+      </div>
+
       {/* System Status */}
       <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
         <div className="flex items-center gap-3">
@@ -217,6 +233,12 @@ export default function Home() {
 
       {/* Main Dashboard Content */}
       <div className="space-y-10">
+        {/* Quality Filters */}
+        <DataQualityFilters
+          onFiltersChange={setQualityFilters}
+          className="lg:col-span-2"
+        />
+
         {/* Live Matches Section */}
         <LiveMatches 
           maxMatches={6}

@@ -12,12 +12,18 @@
     "db:studio": "prisma studio",
     "sync:initial": "node scripts/initial-sync.js",
     "sync:today": "node -e \"require('./src/lib/syncAll.ts').syncTodayData().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
-    "test:backend": "node test-backend.js"
+    "test:backend": "node test-backend.js",
+    "agent:backend": "AGENT_TYPE=backend node scripts/agent-backend.js",
+    "agent:frontend": "AGENT_TYPE=frontend node scripts/agent-frontend.js",
+    "agent:monitor": "node scripts/monitor-agents.js",
+    "agent:clean": "rm -rf .agent-context",
+    "agent:status": "node -e \"const ThreadManager = require('./.agent-context/thread-manager'); const tm = new ThreadManager(); console.log(JSON.stringify(tm.getActiveThread(), null, 2));\""
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-dropdown-menu": "^2.1.15",
+    "@radix-ui/react-progress": "^1.1.7",
     "@radix-ui/react-select": "^2.2.5",
     "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
