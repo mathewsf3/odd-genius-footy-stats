@@ -1,32 +1,21 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/database';
-import { getTodayRange } from '@/lib/dateUtils';
 
 export async function GET() {
   try {
     console.log('🔍 Verificando integridade dos dados...');
 
-    const todayRange = getTodayRange();
     const now = Math.floor(Date.now() / 1000);
 
-    // Count verified matches (all matches from our database are considered verified)
-    const [totalMatches, liveMatches, upcomingMatches, competitions] = await Promise.all([
+    // Count basic statistics
+    const [totalMatches, liveMatches, upcomingMatches, totalLeagues] = await Promise.all([
       // Total matches in the system
       prisma.match.count(),
       
-      // Live matches count
+      // Live matches count (simple approach)
       prisma.match.count({
         where: {
-          OR: [
-            { status: 'live' },
-            {
-              AND: [
-                { date_unix: { lte: now } },
-                { date_unix: { gte: now - (2 * 60 * 60) } }, // Started within last 2 hours
-                { status: { not: 'complete' } }
-              ]
-            }
-          ]
+          status: 'live'
         }
       }),
       
@@ -37,14 +26,8 @@ export async function GET() {
         }
       }),
       
-      // Count distinct competitions
-      prisma.match.findMany({
-        select: {
-          competition_id: true,
-          competition_name: true
-        },
-        distinct: ['competition_id']
-      })
+      // Total leagues count
+      prisma.league.count()
     ]);
 
     // Calculate data quality score based on various factors
@@ -80,8 +63,8 @@ export async function GET() {
       totalMatches: totalMatches,
       lastSync: new Date(),
       apiStatus,
-      competitions: competitions.length,
-      coverage: competitions.length > 10 ? 'Europa + Brasil + Mundo' : 'Europa + Brasil',
+      competitions: totalLeagues,
+      coverage: totalLeagues > 10 ? 'Europa + Brasil + Mundo' : 'Europa + Brasil',
       dataQuality: Math.max(0, qualityScore),
       liveMatches,
       upcomingMatches,
@@ -89,7 +72,7 @@ export async function GET() {
         totalInDatabase: totalMatches,
         currentlyLive: liveMatches,
         scheduledUpcoming: upcomingMatches,
-        activeCompetitions: competitions.length,
+        activeCompetitions: totalLeagues,
         lastUpdateTime: new Date().toISOString()
       }
     };
@@ -98,7 +81,7 @@ export async function GET() {
       total: totalMatches,
       live: liveMatches,
       upcoming: upcomingMatches,
-      competitions: competitions.length,
+      leagues: totalLeagues,
       quality: qualityScore
     });
 
